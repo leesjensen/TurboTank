@@ -16,7 +16,6 @@ namespace Shared
         public string requestExampleBody;
         public string responseExample;
         public bool isInternal;
-        public bool isSecure = true;
 
         public DynObject Serialize()
         {
