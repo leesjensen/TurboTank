@@ -69,16 +69,9 @@ namespace Shared
         }
 
 
-        public static dynamic GetJsonResponse(string host, int port, string resource, string method = "GET", string body = null, HttpStatusCode expectedStatus = HttpStatusCode.OK)
+        public string GetTextResponse(string resource, string method = "GET", string body = null, Dictionary<string, string> headers = null, HttpStatusCode expectedStatus = HttpStatusCode.OK)
         {
-            HttpClient client = new HttpClient(host, port);
-            return client.GetJsonResponse(resource, method, body, expectedStatus);
-        }
-
-
-        public string GetTextResponse(string resource, string method = "GET", string body = null, HttpStatusCode expectedStatus = HttpStatusCode.OK)
-        {
-            using (HttpWebResponse response = GetWebResponse(resource, method, body))
+            using (HttpWebResponse response = GetWebResponse(resource, method, body, headers))
             {
 
                 string responseText = null;
@@ -97,9 +90,9 @@ namespace Shared
         }
 
 
-        public dynamic GetJsonResponse(string resource, string method = "GET", string body = null, HttpStatusCode expectedStatus = HttpStatusCode.OK)
+        public dynamic GetJsonResponse(string resource, string method = "GET", string body = null, Dictionary<string, string> headers = null, HttpStatusCode expectedStatus = HttpStatusCode.OK)
         {
-            string responseText = GetTextResponse(resource, method, body, expectedStatus);
+            string responseText = GetTextResponse(resource, method, body, headers, expectedStatus);
             if (responseText.Length > 0)
             {
                 if (responseText[0] == '{')
@@ -118,7 +111,7 @@ namespace Shared
         }
 
 
-        private HttpWebResponse GetWebResponse(string resource, string method = "GET", string body = null)
+        private HttpWebResponse GetWebResponse(string resource, string method = "GET", string body = null, Dictionary<string, string> headers = null)
         {
             Stopwatch requestTimer = Stopwatch.StartNew();
             HttpWebRequest request = (HttpWebRequest)WebRequest.Create("http://" + Host + ":" + Port + resource);
@@ -129,6 +122,11 @@ namespace Shared
             request.ContentType = "application/json; charset=utf-8";
             request.UserAgent = "Mozilla/5.0 (Windows NT; Windows NT 6.3; en-US) TurboTank";
             request.CookieContainer = cookieContainer;
+
+            foreach (KeyValuePair<string, string> header in headers)
+            {
+                request.Headers.Add(header.Key, header.Value);
+            }
 
             if (body != null && body.Length > 0)
             {
@@ -151,6 +149,15 @@ namespace Shared
             {
                 response = (HttpWebResponse)ex.Response;
                 if (response == null) throw ex;
+            }
+
+
+            if (headers != null)
+            {
+                foreach (string header in response.Headers)
+                {
+                    headers[header] = response.Headers.Get(header);
+                }
             }
 
             LogRequest(resource, method, response, requestTimer.ElapsedMilliseconds);

@@ -22,7 +22,7 @@ docsApp.controller('docsCtrl', function ($scope, $http) {
         $http(req).success(function (data, status, headers, config) {
             currentDoc.responseExample = data;
         }).error(function (data, status, headers, config) {
-            alert("Error: " + JSON.stringify(data, undefined, 2));
+            currentDoc.responseExample = JSON.stringify(data, undefined, 2);
         });
     }
 });

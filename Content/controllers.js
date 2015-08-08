@@ -7,9 +7,12 @@ turboTankControllers.controller('commonCtrl', function ($route, $scope, $locatio
 
 
 turboTankControllers.controller('rootCtrl', function ($scope, $routeParams, dataCenter) {
+    $scope.server = "127.0.0.1";
+    $scope.port = "8080";
+    $scope.gameId = "tankyou";
 
-    $scope.startGame = function (gameId) {
-        dataCenter.startGame(gameId);
+    $scope.startGame = function (server, port, gameId) {
+        dataCenter.startGame(server, port, gameId);
     }
 });
 

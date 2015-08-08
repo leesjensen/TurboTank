@@ -24,8 +24,8 @@ turboTankApp.config(['$routeProvider',
 
 turboTankApp.factory('dataCenter', function ($http) {
     return {
-        startGame: function (gameId) {
-            return $http.post('/game/' + gameId, {});
+        startGame: function (server, port, gameId) {
+            return $http.post('/game/' + gameId + '?server=' + server + '&port=' + port, {});
         },
     }
 });
