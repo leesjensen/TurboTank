@@ -8,12 +8,21 @@
 
 <div class="well container">
     <form>
-        <div class="row">
-            <input class="input-sm" ng-model="gameId" placeholder="New game ID" validate>
-            <input class="input-sm" ng-model="server">
-            <input class="input-sm" ng-model="port">
-            <button class="btn btn-default btn-sm" ng-click="startGame(server, port, gameId)"><span class="glyphicon glyphicon-cloud-upload"></span> Join</button>
-        </div>
+        <table>
+            <tr>
+                <td>Game ID:</td>
+                <td><input class="input-sm" ng-model="gameId" placeholder="New game ID" validate></td>
+            </tr>
+            <tr>
+                <td>Server:</td>
+                <td><input class="input-sm" ng-model="server"></td>
+            </tr>
+            <tr>
+                <td>Port:</td>
+                <td><input class="input-sm" ng-model="port"></td>
+            </tr>
+        </table>
+        <button class="btn btn-default btn-sm" ng-click="startGame(server, port, gameId)"><span class="glyphicon glyphicon-cloud-upload"></span> Join</button>
     </form>
 </div>
 

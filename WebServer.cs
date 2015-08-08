@@ -127,128 +127,6 @@ namespace TurboTank
             request.ResponseText = result.ToString();
         }
 
-        public enum Move
-        {
-            Left,
-            Right,
-            Fire,
-            Move,
-            Noop
-        }
-
-        public enum Orientation
-        {
-            North,
-            East,
-            South,
-            West
-        }
-
-        public enum Status
-        {
-            Running,
-            Won,
-            Lost,
-            Draw
-        }
-
-        public class Position
-        {
-            public int X;
-            public int Y;
-        }
-
-        public class Game
-        {
-            public string GameId;
-            public string PlayerId;
-
-            private HttpClient client;
-            private DynObject config;
-
-            private Status status;
-            private int health;
-            private int energy;
-            private Orientation orientation;
-            private char[,] grid = new char[24, 16];
-
-            public Position MyPostion = new Position();
-
-            public override string ToString()
-            {
-                return DynObject.FromPairs("gameId", GameId, "playerId", PlayerId, "status", status).ToString();
-            }
-
-            //max_energy;
-            //laser_distance
-            //health_loss
-            //battery_power
-            //battery_health
-            //laser_energy
-            //connect_back_timeout
-            //max_health
-            //laser_damage
-            //turn_timeout
-
-
-            public Game(string server, int port, string gameId)
-            {
-                this.GameId = gameId;
-                this.client = new HttpClient(server, port);
-
-                Dictionary<string, string> headers = new Dictionary<string, string>();
-                headers.Add("X-Sm-Playermoniker", "Lee");
-
-                dynamic joinResponse = client.GetJsonResponse("/game/" + gameId + ":screen/join", "POST", "", headers);
-                ParseStatus(joinResponse);
-
-                PlayerId = headers["X-Sm-Playerid"];
-                config = joinResponse.config;
-            }
-
-            public bool IsRunning()
-            {
-                return (status == Status.Running);
-            }
-
-            public void Move(Move move)
-            {
-                Dictionary<string, string> headers = new Dictionary<string, string>();
-                headers.Add("X-Sm-Playerid", PlayerId);
-
-                dynamic moveResponse = client.GetJsonResponse("/game/" + GameId + ":screen/" + move.ToString().ToLower(), "POST", "", headers);
-
-                ParseStatus(moveResponse);
-            }
-
-            private void ParseStatus(dynamic moveResponse)
-            {
-                Enum.TryParse(moveResponse.status, true, out status);
-                Enum.TryParse(moveResponse.orientation, true, out orientation);
-                health = moveResponse.health;
-                energy = moveResponse.energy;
-
-                int gridY = 0;
-                foreach (string gridLine in moveResponse.grid.Split('\n'))
-                {
-                    int gridX = 0;
-                    foreach (char gridChar in gridLine)
-                    {
-                        grid[gridX, gridY] = gridChar;
-
-                        if (gridChar == 'X')
-                        {
-                            MyPostion.X = gridX;
-                            MyPostion.Y = gridY;
-                        }
-
-                        gridX++;
-                    }
-                    gridY++;
-                }
-            }
-        }
-
 
         [Docs(
             name = "Start Game",
@@ -267,10 +145,7 @@ namespace TurboTank
 
             ThreadUtil.RunWorkerThread((state) =>
             {
-                while (game.IsRunning())
-                {
-                    game.Move(Move.Left);
-                }
+                game.Run(new SignalWeights());
             });
 
             request.ResponseText = game.ToString();
