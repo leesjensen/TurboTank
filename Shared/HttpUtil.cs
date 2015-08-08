@@ -127,7 +127,7 @@ namespace Shared
             request.ReadWriteTimeout = ReadWriteTimeout;
             request.Timeout = ConntectionTimeout;
             request.ContentType = "application/json; charset=utf-8";
-            request.UserAgent = "Mozilla/5.0 (Windows NT; Windows NT 6.3; en-US) Zeus";
+            request.UserAgent = "Mozilla/5.0 (Windows NT; Windows NT 6.3; en-US) TurboTank";
             request.CookieContainer = cookieContainer;
 
             if (body != null && body.Length > 0)

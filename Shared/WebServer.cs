@@ -78,7 +78,7 @@ namespace Shared
 
         [Docs(
             name = "Get Favicon",
-            description = "Gets the Zeus icon.",
+            description = "Gets the favorite icon.",
             method = "GET",
             requestPattern = "/favicon.ico",
             isInternal = true
@@ -92,7 +92,7 @@ namespace Shared
 
         [Docs(
             name = "Get Content",
-            description = "Gets Zeus content files.",
+            description = "Gets content files.",
             method = "GET",
             requestPattern = "/content/{path:.*}",
             isInternal = true

@@ -1,15 +1,15 @@
-﻿var zeusApp = angular.module('zeusApp', [
+﻿var turboTankApp = angular.module('turboTankApp', [
 'ngRoute',
 'turboTankControllers',
 'ui.bootstrap',
 'xeditable'
 ]);
 
-zeusApp.run(function (editableOptions) {
+turboTankApp.run(function (editableOptions) {
     editableOptions.theme = 'bs3';
 });
 
-zeusApp.config(['$routeProvider',
+turboTankApp.config(['$routeProvider',
   function ($routeProvider) {
       $routeProvider.
         when('/', {
@@ -22,7 +22,7 @@ zeusApp.config(['$routeProvider',
   }]);
 
 
-zeusApp.factory('dataCenter', function ($http) {
+turboTankApp.factory('dataCenter', function ($http) {
     return {
         startGame: function (gameId) {
             return $http.post('/game/' + gameId, {});
