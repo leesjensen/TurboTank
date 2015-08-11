@@ -36,7 +36,7 @@ namespace TurboTank
 
         public override string ToString()
         {
-            return string.Format("{0} Health: {1} Energy: {2}", Position, Health, Energy);
+            return Position.ToString();
         }
 
         public void Update(dynamic serialization)
@@ -111,7 +111,7 @@ namespace TurboTank
         public IEnumerable<Position> LookAhead()
         {
             Position lookPosition = GetAhead();
-            while (lookPosition.X != Position.X && lookPosition.Y != Position.Y)
+            while (lookPosition.X != Position.X || lookPosition.Y != Position.Y)
             {
                 lookPosition = GetAhead(lookPosition);
                 yield return lookPosition;

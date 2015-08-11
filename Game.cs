@@ -86,7 +86,7 @@ namespace TurboTank
         {
             this.client = client;
             dynamic joinResponse = client.Start();
-            turnTimeout = (joinResponse.config.turn_timeout / 1000) - 3000;
+            turnTimeout = (joinResponse.config.turn_timeout / 1000) - 5000;
             grid = new Grid();
 
             ParseStatus(joinResponse);
@@ -121,40 +121,44 @@ namespace TurboTank
             int evalCount = 0;
             object bestStateLock = new object();
             EvalState bestState = new EvalState(Action.Noop, grid);
+
+//            TankOperation startingOperation = new TankOperationMove();
             Parallel.ForEach(operations, (startingOperation) =>
             {
                 int depth = 0;
                 Beam beam = new Beam(startingOperation, grid, weights);
-                foreach (EvalState state in beam.Iterate())
+
+
+                while (!IsTimeout(turnTimeout, turnStartTime))
                 {
-                    depth++;
-                    foreach (TankOperation operation in operations)
+                    foreach (EvalState state in beam.Iterate())
                     {
-                        Interlocked.Increment(ref evalCount);
-                        beam.Add(operation.GetScore(state, weights));
+                        state.Grid.Health--;
+                        depth++;
+                        foreach (TankOperation operation in operations)
+                        {
+                            Interlocked.Increment(ref evalCount);
+                            beam.Add(operation.GetScore(state, weights));
+                        }
                     }
 
                     beam.Evaluate();
-
-                    if (IsTimeout(turnTimeout, turnStartTime))
-                    {
-                        break;
-                    }
                 }
 
                 lock (bestStateLock)
                 {
-                    Program.Log("   {0} depth, Best: {1}", evalCount, beam.GetBest());
-                    if (bestState.Score < beam.GetBest().Score)
+                    EvalState operationBest = beam.GetBest();
+                    Program.Log("   {0} depth, Best: ({1}) {2}", evalCount, operationBest.Score, operationBest);
+                    if (bestState.Score < operationBest.Score)
                     {
-                        bestState = beam.GetBest();
+                        bestState = operationBest;
                     }
                 }
             });
 
-            Program.Log("FINAL: {0} evaluated, Best: {1}", evalCount, bestState);
+            Program.Log("FINAL: {0} evaluated, Best: ({1}) {2}", evalCount, bestState.Score, bestState);
 
-            return bestState.StartAction;
+            return bestState.GetRootAction();
         }
 
         private void ParseStatus(dynamic moveResponse)
@@ -164,113 +168,8 @@ namespace TurboTank
             grid.Update(moveResponse);
         }
 
-        public class EvalState
-        {
-            public Action Action;
-            public Action StartAction;
-            public int Score;
-            public Grid Grid;
-
-            public bool Evaluated = false;
-
-            public EvalState(Action action, Grid grid)
-            {
-                this.Action = action;
-                this.StartAction = action;
-                this.Grid = grid;
-            }
-
-            public EvalState(Action action, EvalState copy, int score, Position position)
-                : this(copy.StartAction, new Grid(copy.Grid, position))
-            {
-                this.Action = action;
-                this.Score = copy.Score + score;
-            }
-
-            public override string ToString()
-            {
-                return string.Format("{0} {1} ({2}) {3}", Score, Action, StartAction, Grid);
-            }
-        }
 
 
-        public class Beam
-        {
-            private const int MaxSize = 10;
-            EvalState[] bestStates = new EvalState[MaxSize];
-            List<EvalState> candidates = new List<EvalState>();
-
-            public Beam(TankOperation operation, Grid grid, SignalWeights weights)
-            {
-                EvalState startingState = new EvalState(operation.GetAction(), grid);
-                bestStates[0] = operation.GetScore(startingState, weights);
-            }
-
-            public void Add(EvalState candidateState)
-            {
-                candidates.Add(candidateState);
-            }
-
-            public void Evaluate()
-            {
-                foreach (var candidateState in candidates)
-                {
-                    if (bestStates[MaxSize - 1] == null || candidateState.Score > bestStates[MaxSize - 1].Score)
-                    {
-                        for (int pos = 0; pos < MaxSize; pos++)
-                        {
-                            if (bestStates[pos] == null)
-                            {
-                                bestStates[pos] = candidateState;
-                                break;
-                            }
-                            else if (candidateState.Score > bestStates[pos].Score)
-                            {
-                                for (int movePos = MaxSize - 1; movePos > pos; movePos--)
-                                {
-                                    bestStates[movePos] = bestStates[movePos - 1];
-                                }
-
-                                bestStates[pos] = candidateState;
-                                break;
-                            }
-                        }
-                    }
-                }
-
-                candidates.Clear();
-            }
-
-            public IEnumerable<EvalState> Iterate()
-            {
-                for (int pos = 0; pos < MaxSize; pos++)
-                {
-                    if (!bestStates[pos].Evaluated)
-                    {
-                        bestStates[pos].Evaluated = true;
-
-                        yield return bestStates[pos];
-                    }
-                }
-            }
-
-            public EvalState GetBest()
-            {
-                return bestStates[0];
-            }
-
-            public override string ToString()
-            {
-                return bestStates[0].ToString();
-            }
-        }
-
-
-        public abstract class TankOperation
-        {
-            public abstract Action GetAction();
-            public abstract EvalState GetScore(EvalState state, SignalWeights weights);
-        }
 
 
         public static bool IsTimeout(long turnTimeout, long turnStartTime)
@@ -280,116 +179,6 @@ namespace TurboTank
             return (ticksUsed > turnTimeout);
         }
 
-
-        public class TankOperationLeft : TankOperation
-        {
-            public override Action GetAction() { return Action.Left; }
-
-            public override EvalState GetScore(EvalState state, SignalWeights weights)
-            {
-                int score = 0;
-                Position newPosition = state.Grid.GetLeft();
-                char item = state.Grid.GetItem(newPosition);
-                if (item == '_')
-                {
-                    score += 10;
-                }
-
-                return new EvalState(GetAction(), state, score, newPosition);
-            }
-        }
-
-        public class TankOperationRight : TankOperation
-        {
-            public override Action GetAction() { return Action.Right; }
-
-            public override EvalState GetScore(EvalState state, SignalWeights weights)
-            {
-                int score = 0;
-                Position newPosition = state.Grid.GetRight();
-                char item = state.Grid.GetItem(newPosition);
-                if (item == '_')
-                {
-                    score += 10;
-                }
-
-                return new EvalState(GetAction(), state, score, newPosition);
-            }
-        }
-
-        public class TankOperationFire : TankOperation
-        {
-            public override Action GetAction() { return Action.Fire; }
-
-            public override EvalState GetScore(EvalState state, SignalWeights weights)
-            {
-                int distance = 1;
-                int score = -1000;
-
-                if (state.Grid.Energy > 0)
-                {
-                    foreach (Position aheadPosition in state.Grid.LookAhead())
-                    {
-                        char item = state.Grid.GetItem(aheadPosition);
-                        if (item == 'O')
-                        {
-                            score = (10 - distance) * 100;
-                            break;
-                        }
-
-                        distance++;
-                    }
-                }
-
-                return new EvalState(GetAction(), state, score, state.Grid.Position);
-            }
-        }
-
-        public class TankOperationMove : TankOperation
-        {
-            public override Action GetAction() { return Action.Move; }
-
-            public override EvalState GetScore(EvalState state, SignalWeights weights)
-            {
-                int distance = 1;
-                int score = 0;
-                foreach (Position aheadPosition in state.Grid.LookAhead())
-                {
-                    char item = state.Grid.GetItem(aheadPosition);
-                    if (item == 'B')
-                    {
-                        score = (15 - distance) * 50;
-                        if (state.Grid.Health < 100)
-                        {
-                            score += 1000;
-                        }
-                        break;
-                    }
-                    else if (item == 'L')
-                    {
-                        score = -200;
-                        break;
-                    }
-                    else if (item == 'W' && distance == 1)
-                    {
-                        score = -10;
-                        break;
-                    }
-                }
-
-                return new EvalState(GetAction(), state, score, state.Grid.Position);
-            }
-        }
-
-        public class TankOperationNoop : TankOperation
-        {
-            public override Action GetAction() { return Action.Noop; }
-
-            public override EvalState GetScore(EvalState state, SignalWeights weights)
-            {
-                return state;
-            }
-        }
     }
 
 }

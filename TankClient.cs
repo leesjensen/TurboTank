@@ -58,7 +58,6 @@ namespace TurboTank
             this.expectedAction = expectedAction;
             this.startResponse = startResponse;
 
-            this.takeActionResponse = takeActionResponse;
             if (takeActionResponse == null)
             {
                 takeActionResponse = DynObject.Parse(@"{
@@ -84,6 +83,8 @@ ____WWW_________________
 ________________________'
                 }");
             }
+
+            this.takeActionResponse = takeActionResponse;
         }
 
         public dynamic Start()
