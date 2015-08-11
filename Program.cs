@@ -25,8 +25,6 @@ namespace TurboTank
 
         static public int Main(string[] args)
         {
-            Logger.Reset(DynObject.Parse("{'level':'info','targets':{'console':{}}}"), false);
-
             AppDomain.CurrentDomain.UnhandledException += UnhandledException;
             Directory.SetCurrentDirectory(IOUtil.GetProcessDirectory());
 
@@ -40,7 +38,6 @@ namespace TurboTank
                 catch (Exception ex)
                 {
                     Console.WriteLine("ERROR: " + ex);
-                    Logger.Info("ERROR: {0}", ex.ToString());
                 }
             }
             else
@@ -48,11 +45,16 @@ namespace TurboTank
                 Console.WriteLine(Syntax);
             }
 
-            Logger.Reset(new DynObject(), true);
             return 0;
         }
 
 
+        static public void Log(string format, params object[] args)
+        {
+#if DEBUG
+            Console.WriteLine(format, args);
+#endif
+        }
 
 
         static private void ExecuteService(JsonArgs commandLine)

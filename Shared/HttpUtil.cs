@@ -160,27 +160,8 @@ namespace Shared
                 }
             }
 
-            LogRequest(resource, method, response, requestTimer.ElapsedMilliseconds);
-
             return response;
         }
-
-
-        private void LogRequest(string resource, string method, HttpWebResponse response, double responseTime)
-        {
-
-            DynObject json = new DynObject();
-            json["action"] = "clientReqEnd";
-            json["httpMethod"] = method;
-            json["host"] = Host;
-            json["port"] = Port;
-            json["url"] = resource;
-            json["httpStatus"] = response.StatusCode;
-            json["responseTime"] = responseTime;
-
-            Logger.Info(json);
-        }
-
 
     }
 }

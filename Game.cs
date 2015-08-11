@@ -2,8 +2,10 @@
 using Shared;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace TurboTank
@@ -36,13 +38,20 @@ namespace TurboTank
 
     public class Position
     {
+        public Orientation Orientation;
         public int X;
         public int Y;
 
-        public Position(int x, int y)
+        public Position(int x, int y, Orientation orientation)
         {
+            this.Orientation = orientation;
             this.X = x;
             this.Y = y;
+        }
+
+        public override string ToString()
+        {
+            return string.Format("{0} {1},{2}", Orientation, X, Y);
         }
     }
 
@@ -50,53 +59,37 @@ namespace TurboTank
 
     public class Game
     {
-        public string GameId;
-        public string PlayerId;
-
-        private HttpClient client;
-
+        private TankClient client;
         private long turnTimeout;
 
         private Status status;
-        private int health;
-        private int energy;
         private Grid grid;
 
 
-        public override string ToString()
+        public class GameConstants
         {
-            return DynObject.FromPairs("gameId", GameId, "playerId", PlayerId, "status", status).ToString();
+            //max_energy;
+            //laser_distance
+            //health_loss
+            //battery_power
+            //battery_health
+            //laser_energy
+            //connect_back_timeout
+            //max_health
+            //laser_damage
+            //turn_timeout
         }
 
-        //
-
-        //max_energy;
-        //laser_distance
-        //health_loss
-        //battery_power
-        //battery_health
-        //laser_energy
-        //connect_back_timeout
-        //max_health
-        //laser_damage
-        //turn_timeout
 
 
-        public Game(string server, int port, string gameId)
+        public Game(TankClient client)
         {
-            this.GameId = gameId;
-            this.client = new HttpClient(server, port);
-
-            Dictionary<string, string> headers = new Dictionary<string, string>();
-            headers.Add("X-Sm-Playermoniker", "Lee");
-
-            dynamic joinResponse = client.GetJsonResponse("/game/" + gameId + ":screen/join", "POST", "", headers);
-            turnTimeout = joinResponse.config.turn_timeout;
-            grid = new Grid(turnTimeout);
+            this.client = client;
+            dynamic joinResponse = client.Start();
+            turnTimeout = (joinResponse.config.turn_timeout / 1000) - 3000;
+            grid = new Grid();
 
             ParseStatus(joinResponse);
-
-            PlayerId = headers["X-Sm-Playerid"];
         }
 
         private bool IsRunning()
@@ -106,11 +99,7 @@ namespace TurboTank
 
         private void TakeAction(Action move)
         {
-            Dictionary<string, string> headers = new Dictionary<string, string>();
-            headers.Add("X-Sm-Playerid", PlayerId);
-
-            dynamic moveResponse = client.GetJsonResponse("/game/" + GameId + ":screen/" + move.ToString().ToLower(), "POST", "", headers);
-
+            dynamic moveResponse = client.TakeAction(move);
             ParseStatus(moveResponse);
         }
 
@@ -118,50 +107,177 @@ namespace TurboTank
         {
             while (IsRunning())
             {
-                TakeAction(TankOperation.ParallelGetNextAction(grid, weights));
+                TakeAction(GetBestAction(weights));
             }
+        }
+
+
+        static TankOperation[] operations = new TankOperation[] { new TankOperationLeft(), new TankOperationRight(), new TankOperationMove(), new TankOperationFire(), new TankOperationNoop() };
+
+        public Action GetBestAction(SignalWeights weights)
+        {
+            long turnStartTime = Stopwatch.GetTimestamp();
+
+            int evalCount = 0;
+            object bestStateLock = new object();
+            EvalState bestState = new EvalState(Action.Noop, grid);
+            Parallel.ForEach(operations, (startingOperation) =>
+            {
+                int depth = 0;
+                Beam beam = new Beam(startingOperation, grid, weights);
+                foreach (EvalState state in beam.Iterate())
+                {
+                    depth++;
+                    foreach (TankOperation operation in operations)
+                    {
+                        Interlocked.Increment(ref evalCount);
+                        beam.Add(operation.GetScore(state, weights));
+                    }
+
+                    beam.Evaluate();
+
+                    if (IsTimeout(turnTimeout, turnStartTime))
+                    {
+                        break;
+                    }
+                }
+
+                lock (bestStateLock)
+                {
+                    Program.Log("   {0} depth, Best: {1}", evalCount, beam.GetBest());
+                    if (bestState.Score < beam.GetBest().Score)
+                    {
+                        bestState = beam.GetBest();
+                    }
+                }
+            });
+
+            Program.Log("FINAL: {0} evaluated, Best: {1}", evalCount, bestState);
+
+            return bestState.StartAction;
+        }
+
+        private void ParseStatus(dynamic moveResponse)
+        {
+            Enum.TryParse(moveResponse.status, true, out status);
+
+            grid.Update(moveResponse);
         }
 
         public class EvalState
         {
-            public Position Position;
-            public Orientation Orientation;
+            public Action Action;
+            public Action StartAction;
             public int Score;
+            public Grid Grid;
 
-            public EvalState(Position position, Orientation orientation)
+            public bool Evaluated = false;
+
+            public EvalState(Action action, Grid grid)
             {
-                this.Position = position;
-                this.Orientation = orientation;
+                this.Action = action;
+                this.StartAction = action;
+                this.Grid = grid;
+            }
+
+            public EvalState(Action action, EvalState copy, int score, Position position)
+                : this(copy.StartAction, new Grid(copy.Grid, position))
+            {
+                this.Action = action;
+                this.Score = copy.Score + score;
+            }
+
+            public override string ToString()
+            {
+                return string.Format("{0} {1} ({2}) {3}", Score, Action, StartAction, Grid);
             }
         }
 
+
+        public class Beam
+        {
+            private const int MaxSize = 10;
+            EvalState[] bestStates = new EvalState[MaxSize];
+            List<EvalState> candidates = new List<EvalState>();
+
+            public Beam(TankOperation operation, Grid grid, SignalWeights weights)
+            {
+                EvalState startingState = new EvalState(operation.GetAction(), grid);
+                bestStates[0] = operation.GetScore(startingState, weights);
+            }
+
+            public void Add(EvalState candidateState)
+            {
+                candidates.Add(candidateState);
+            }
+
+            public void Evaluate()
+            {
+                foreach (var candidateState in candidates)
+                {
+                    if (bestStates[MaxSize - 1] == null || candidateState.Score > bestStates[MaxSize - 1].Score)
+                    {
+                        for (int pos = 0; pos < MaxSize; pos++)
+                        {
+                            if (bestStates[pos] == null)
+                            {
+                                bestStates[pos] = candidateState;
+                                break;
+                            }
+                            else if (candidateState.Score > bestStates[pos].Score)
+                            {
+                                for (int movePos = MaxSize - 1; movePos > pos; movePos--)
+                                {
+                                    bestStates[movePos] = bestStates[movePos - 1];
+                                }
+
+                                bestStates[pos] = candidateState;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                candidates.Clear();
+            }
+
+            public IEnumerable<EvalState> Iterate()
+            {
+                for (int pos = 0; pos < MaxSize; pos++)
+                {
+                    if (!bestStates[pos].Evaluated)
+                    {
+                        bestStates[pos].Evaluated = true;
+
+                        yield return bestStates[pos];
+                    }
+                }
+            }
+
+            public EvalState GetBest()
+            {
+                return bestStates[0];
+            }
+
+            public override string ToString()
+            {
+                return bestStates[0].ToString();
+            }
+        }
 
 
         public abstract class TankOperation
         {
             public abstract Action GetAction();
-            public abstract int GetScore(Position position, Orientation orientation, Grid grid, SignalWeights weights);
+            public abstract EvalState GetScore(EvalState state, SignalWeights weights);
+        }
 
-            static TankOperation[] operations = new TankOperation[] { new TankOperationNoop(), new TankOperationLeft(), new TankOperationRight(), new TankOperationMove(), new TankOperationFire() };
 
-            public static Action ParallelGetNextAction(Grid grid, SignalWeights weights)
-            {
-                int bestScore = 0;
-                TankOperation bestOperation = operations[0];
-                //Parallel.ForEach(operations, (operation) =>
-                foreach (TankOperation operation in operations)
-                {
-                    int score = operation.GetScore(grid.MyPosition, grid.MyOrientation, grid, weights);
-                    if (score > bestScore)
-                    {
-                        bestScore = score;
-                        bestOperation = operation;
-                    }
-                }
-//                );
+        public static bool IsTimeout(long turnTimeout, long turnStartTime)
+        {
+            long ticksUsed = Stopwatch.GetTimestamp() - turnStartTime;
 
-                return bestOperation.GetAction();
-            }
+            return (ticksUsed > turnTimeout);
         }
 
 
@@ -169,17 +285,17 @@ namespace TurboTank
         {
             public override Action GetAction() { return Action.Left; }
 
-            public override int GetScore(Position position, Orientation orientation, Grid grid, SignalWeights weights)
+            public override EvalState GetScore(EvalState state, SignalWeights weights)
             {
                 int score = 0;
-                Position newPosition = grid.GetLeft(orientation, position);
-                char item = grid.GetItem(newPosition);
+                Position newPosition = state.Grid.GetLeft();
+                char item = state.Grid.GetItem(newPosition);
                 if (item == '_')
                 {
                     score += 10;
                 }
 
-                return score;
+                return new EvalState(GetAction(), state, score, newPosition);
             }
         }
 
@@ -187,17 +303,17 @@ namespace TurboTank
         {
             public override Action GetAction() { return Action.Right; }
 
-            public override int GetScore(Position position, Orientation orientation, Grid grid, SignalWeights weights)
+            public override EvalState GetScore(EvalState state, SignalWeights weights)
             {
                 int score = 0;
-                Position newPosition = grid.GetRight(orientation, position);
-                char item = grid.GetItem(newPosition);
+                Position newPosition = state.Grid.GetRight();
+                char item = state.Grid.GetItem(newPosition);
                 if (item == '_')
                 {
                     score += 10;
                 }
 
-                return score;
+                return new EvalState(GetAction(), state, score, newPosition);
             }
         }
 
@@ -205,26 +321,27 @@ namespace TurboTank
         {
             public override Action GetAction() { return Action.Fire; }
 
-            public override int GetScore(Position position, Orientation orientation, Grid grid, SignalWeights weights)
+            public override EvalState GetScore(EvalState state, SignalWeights weights)
             {
-                int score = 0;
-                Position newPosition = position;
-                char item = '_';
-                while (item == '_')
+                int distance = 1;
+                int score = -1000;
+
+                if (state.Grid.Energy > 0)
                 {
-                    newPosition = grid.GetAhead(orientation, newPosition);
-                    item = grid.GetItem(newPosition);
-                    if (item == 'O')
+                    foreach (Position aheadPosition in state.Grid.LookAhead())
                     {
-                        score += 200;
-                    }
-                    else if (item == 'X')
-                    {
-                        score -= 1000;
+                        char item = state.Grid.GetItem(aheadPosition);
+                        if (item == 'O')
+                        {
+                            score = (10 - distance) * 100;
+                            break;
+                        }
+
+                        distance++;
                     }
                 }
 
-                return score;
+                return new EvalState(GetAction(), state, score, state.Grid.Position);
             }
         }
 
@@ -232,30 +349,35 @@ namespace TurboTank
         {
             public override Action GetAction() { return Action.Move; }
 
-            public override int GetScore(Position position, Orientation orientation, Grid grid, SignalWeights weights)
+            public override EvalState GetScore(EvalState state, SignalWeights weights)
             {
+                int distance = 1;
                 int score = 0;
-                Position newPosition = position;
-                char item = '_';
-                while (item == '_')
+                foreach (Position aheadPosition in state.Grid.LookAhead())
                 {
-                    newPosition = grid.GetAhead(orientation, newPosition);
-                    item = grid.GetItem(newPosition);
+                    char item = state.Grid.GetItem(aheadPosition);
                     if (item == 'B')
                     {
-                        score += 200;
+                        score = (15 - distance) * 50;
+                        if (state.Grid.Health < 100)
+                        {
+                            score += 1000;
+                        }
+                        break;
                     }
-                    else if (item == 'L') // And we actually have laser energy.
+                    else if (item == 'L')
                     {
-                        score -= 100;
+                        score = -200;
+                        break;
                     }
-                    else if (item == 'W')
+                    else if (item == 'W' && distance == 1)
                     {
-                        score -= 10;
+                        score = -10;
+                        break;
                     }
                 }
 
-                return score;
+                return new EvalState(GetAction(), state, score, state.Grid.Position);
             }
         }
 
@@ -263,19 +385,10 @@ namespace TurboTank
         {
             public override Action GetAction() { return Action.Noop; }
 
-            public override int GetScore(Position position, Orientation orientation, Grid grid, SignalWeights weights)
+            public override EvalState GetScore(EvalState state, SignalWeights weights)
             {
-                return 0;
+                return state;
             }
-        }
-
-        private void ParseStatus(dynamic moveResponse)
-        {
-            Enum.TryParse(moveResponse.status, true, out status);
-            Enum.TryParse(moveResponse.orientation, true, out grid.MyOrientation);
-            health = moveResponse.health;
-            energy = moveResponse.energy;
-            grid.Update(moveResponse.grid);
         }
     }
 

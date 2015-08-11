@@ -22,7 +22,7 @@ namespace Shared
                     }
                     catch (Exception ex)
                     {
-                        Logger.Error(ex, exceptionMessage);
+                        Console.WriteLine("ERROR: {0} {1}", exceptionMessage, ex);
                     }
                 } catch
                 {
@@ -41,7 +41,7 @@ namespace Shared
                 }
                 catch (Exception ex)
                 {
-                    Logger.Error(ex, exceptionMessage);
+                    Console.WriteLine("ERROR: {0} {1}", exceptionMessage, ex);
                 }
             }
             catch

@@ -69,6 +69,7 @@
     <Compile Include="Shared\ThreadUtil.cs" />
     <Compile Include="Shared\TimeUtil.cs" />
     <Compile Include="SignalWeights.cs" />
+    <Compile Include="TankClient.cs" />
     <Compile Include="WebServer.cs" />
     <Compile Include="Shared\WebServerRequest.cs" />
   </ItemGroup>

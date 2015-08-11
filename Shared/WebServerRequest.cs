@@ -28,10 +28,8 @@ namespace Shared
         public string ContentType = DEFAULT_CONTENT_TYPE;
         public string ResponseText;
         public HttpStatusCode StatusCode = HttpStatusCode.OK;
-        public DynObject LogEntry;
 
         private string userId = "unknown";
-        private string sessionToken = "invalid";
         private string responseFilename;
 
         private Dictionary<string, string> pathParams;
@@ -45,43 +43,10 @@ namespace Shared
             this.pathParams = pathParams;
             this.baseRequest = baseRequest;
             this.baseResponse = baseResponse;
-            this.LogEntry = logEntry;
-
-            GetSession();
-
-            LogEntry["userId"] = userId;
         }
 
         public string UserId { get { return userId; } }
 
-        public string SessionToken { get { return sessionToken; } }
-
-
-        public void GetSession()
-        {
-            try
-            {
-                DynObject session = DynObject.Parse(GetSessionCookie());
-                userId = JsonUtil.Get(session, "userId", "unknown");
-                sessionToken = JsonUtil.Get(session, "token", "invalid");
-            }
-            catch (Exception ex)
-            {
-                Logger.Error(ex, "Invalid session cookie provided. {0}", baseRequest.Cookies["session"] != null ? baseRequest.Cookies["session"].Value : "");
-            }
-        }
-
-
-        public void UpdateSession(string userId, string sessionToken)
-        {
-            this.userId = userId;
-            this.sessionToken = sessionToken;
-
-            string cookieText = DynObject.FromPairs("userId", userId, "token", sessionToken).ToString();
-            cookieText = Base64Encode(cookieText);
-
-            baseResponse.Cookies.Add(new Cookie("session", cookieText, "/"));
-        }
 
 
         public void SetJsonResponse(string jsonText, bool withSingleQuoteReplace = true)
