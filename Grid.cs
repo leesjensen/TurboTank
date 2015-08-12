@@ -14,24 +14,24 @@ namespace TurboTank
 
         public int Health;
         public int Energy;
+        public bool EnemyHit = false;
+        public bool BatteryFound = false;
         public Position Position;
         public char[,] Cells = new char[Width, Height];
 
         public Grid()
         {
-
         }
 
-        public Grid(Grid copy, Position position)
+        public Grid(Grid copy)
         {
-            this.Position = position;
-            this.Health = copy.Health;
+            this.Position = copy.Position;
+            this.Health = copy.Health - 1;
             this.Energy = copy.Energy;
+            this.EnemyHit = copy.EnemyHit;
+            this.BatteryFound = copy.BatteryFound;
 
             Array.Copy(copy.Cells, 0, Cells, 0, Cells.Length);
-
-            Cells[copy.Position.X, copy.Position.Y] = '_';
-            Cells[Position.X, Position.Y] = 'X';
         }
 
         public override string ToString()
@@ -41,6 +41,9 @@ namespace TurboTank
 
         public void Update(dynamic serialization)
         {
+            EnemyHit = false;
+            BatteryFound = false;
+
             Orientation orientation;
             Enum.TryParse(serialization.orientation, true, out orientation);
 
@@ -51,7 +54,7 @@ namespace TurboTank
 
             // Infer the health, battery and laser energy of our opponent based on how the board changes.
             int gridY = 0;
-            foreach (string gridLine in gridSerialization.Split(new string[] {"\n", "\r\n"}, StringSplitOptions.RemoveEmptyEntries))
+            foreach (string gridLine in gridSerialization.Split(new string[] { "\n", "\r\n" }, StringSplitOptions.RemoveEmptyEntries))
             {
                 int gridX = 0;
                 foreach (char gridChar in gridLine)
@@ -70,9 +73,22 @@ namespace TurboTank
 
         }
 
+        public void MovePosition(Position newPosition)
+        {
+            Cells[Position.X, Position.Y] = '_';
+            Cells[newPosition.X, newPosition.Y] = 'X';
+
+            Position = newPosition;
+        }
+
         public char GetItem(Position position)
         {
             return Cells[position.X, position.Y];
+        }
+
+        public void SetItem(Position position, char item)
+        {
+            Cells[position.X, position.Y] = item;
         }
 
         public Position GetLeft()

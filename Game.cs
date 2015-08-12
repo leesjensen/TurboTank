@@ -62,10 +62,6 @@ namespace TurboTank
         private TankClient client;
         private long turnTimeout;
 
-        private Status status;
-        private Grid grid;
-
-
         public class GameConstants
         {
             //max_energy;
@@ -87,71 +83,69 @@ namespace TurboTank
             ThreadPool.SetMinThreads(operations.Length, 4);
 
             this.client = client;
-            dynamic joinResponse = client.Start();
-            turnTimeout = (joinResponse.config.turn_timeout / 1000) - 5000;
-            grid = new Grid();
-
-            ParseStatus(joinResponse);
         }
 
-        private bool IsRunning()
-        {
-            return (status == Status.Running);
-        }
-
-        private void TakeAction(Action move)
-        {
-            dynamic moveResponse = client.TakeAction(move);
-            ParseStatus(moveResponse);
-        }
 
         public void Run(SignalWeights weights)
         {
-            while (IsRunning())
+            dynamic joinResponse = client.Start();
+            turnTimeout = (joinResponse.config.turn_timeout / 1000) - 5000;
+            Grid grid = new Grid();
+
+            Status status = ParseStatus(joinResponse, grid);
+
+            while (status == Status.Running)
             {
-                TakeAction(GetBestAction(weights));
+                Action action = GetBestAction(grid, weights);
+                dynamic moveResponse = client.TakeAction(action);
+                status = ParseStatus(moveResponse, grid);
             }
         }
 
         static TankOperation[] operations = new TankOperation[] { new TankOperationLeft(), new TankOperationRight(), new TankOperationMove(), new TankOperationFire() };
 
-        public Action GetBestAction(SignalWeights weights)
+        public Action GetBestAction(Grid grid, SignalWeights weights)
         {
             long turnStartTime = Stopwatch.GetTimestamp();
 
+            bool enemyHit = false;
+            int depth = 1;
             List<Beam> beams = new List<Beam>();
             foreach (var operation in operations)
             {
-                beams.Add(new Beam(operation, grid, weights));
+                Beam beam = new Beam(operation, grid, weights);
+                beams.Add(beam);
+
+                enemyHit = (enemyHit || beam.GetBest().Grid.EnemyHit);
             }
 
-            int depth = 0;
-            while (!IsTimeout(turnTimeout, turnStartTime))
+            while (!enemyHit && !IsTimeout(turnTimeout, turnStartTime))
             {
                 depth++;
-                    Parallel.ForEach(beams, (beam) =>
+                Parallel.ForEach(beams, (beam) =>
+                {
+
+                    foreach (EvalState state in beam.Iterate())
                     {
+                        state.Grid.Health--;
+                        foreach (TankOperation operation in operations)
+                        {
+                            EvalState opState = operation.GetScore(state, weights);
+                            beam.Add(opState);
+                        }
+                    }
 
-                            foreach (EvalState state in beam.Iterate())
-                            {
-                                state.Grid.Health--;
-                                foreach (TankOperation operation in operations)
-                                {
-                                    EvalState opState = operation.GetScore(state, weights);
-                                    Program.Log("         ({0}) {1}", beam.StartAction, opState);
-                                    beam.Add(opState);
-                                }
-                            }
+                    beam.Evaluate();
 
-                            beam.Evaluate();
-                    });
+                    enemyHit = (enemyHit || beam.GetBest().Grid.EnemyHit);
+                });
             }
 
             EvalState bestState = new EvalState(Action.Noop, grid);
             foreach (var beam in beams)
             {
                 EvalState operationBest = beam.GetBest();
-                Program.Log("   Beam {0}: {1} depth, {2} candidates, ({3}) {4}", beam.StartAction, depth, beam.CandidateCount, operationBest.Score, operationBest);
+                Console.WriteLine("   Beam {0} - hit: {1}, depth: {2}, candidates: {3}, ({4}) {5}", beam.StartAction, operationBest.Grid.EnemyHit, depth, beam.CandidateCount, operationBest.Score, operationBest);
                 if (bestState.Score < operationBest.Score)
                 {
                     bestState = operationBest;
@@ -159,16 +153,20 @@ namespace TurboTank
             }
 
 
-            Program.Log("FINAL: Best: ({0}) {1}", bestState.Score, bestState);
+            Console.WriteLine("FINAL - hit: {0} Best: ({1}) {2}", enemyHit, bestState.Score, bestState);
 
             return bestState.GetRootAction();
         }
 
-        private void ParseStatus(dynamic moveResponse)
+
+        private static Status ParseStatus(dynamic moveResponse, Grid grid)
         {
+            Status status;
             Enum.TryParse(moveResponse.status, true, out status);
 
             grid.Update(moveResponse);
+
+            return status;
         }
 
 

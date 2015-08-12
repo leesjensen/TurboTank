@@ -105,7 +105,7 @@ ________________________
 ____WWW_________________
 ________________________";
 
-            TestTankClient client = new TestTankClient(joinResponse, TurboTank.Action.Left);
+            TestTankClient client = new TestTankClient(joinResponse, TurboTank.Action.Right);
             Game game = new Game(client);
             game.Run(new SignalWeights());
         }
@@ -163,6 +163,34 @@ ________________________";
         }
 
         [TestMethod]
+        public void DontNeedBattery()
+        {
+            joinResponse["grid"] =
+@"________________________
+___W_____WWWWWWWW_______
+___W_W_O________________
+___W_W____________X_____
+___W_W____________B_____
+___W_W__________________
+_WWWWWWWWW______________
+_____W__________________
+_____W_WWWWW____________
+_________WWWWWWWW_______
+________________________
+___________WWWW_________
+________________________
+________________________
+____WWW_________________
+________________________";
+
+            joinResponse["energy"] = 10;
+
+            TestTankClient client = new TestTankClient(joinResponse, TurboTank.Action.Move);
+            Game game = new Game(client);
+            game.Run(new SignalWeights());
+        }
+
+        [TestMethod]
         public void OppenentBehindWall()
         {
             joinResponse["grid"] =
@@ -181,8 +209,7 @@ ___________WWWW_________
 ________________________
 ________________________
 ____WWW_________________
-________________________'
-}";
+________________________";
 
             TestTankClient client = new TestTankClient(joinResponse, TurboTank.Action.Right);
             Game game = new Game(client);

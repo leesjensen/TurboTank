@@ -8,7 +8,7 @@ namespace TurboTank
 {
     public class Beam
     {
-        public int CandidateCount;
+        public int CandidateCount = 1;
         public Action StartAction;
         private const int MaxSize = 10;
         EvalState[] bestStates = new EvalState[MaxSize];
@@ -24,7 +24,10 @@ namespace TurboTank
         public void Add(EvalState candidateState)
         {
             CandidateCount++;
-            candidates.Add(candidateState);
+            if (candidateState.Score >= 0)
+            {
+                candidates.Add(candidateState);
+            }
         }
 
         public void Evaluate()

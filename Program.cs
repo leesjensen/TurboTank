@@ -53,6 +53,7 @@ namespace TurboTank
         {
 #if DEBUG
             Console.WriteLine(format, args);
+            Console.WriteLine();
 #endif
         }
 

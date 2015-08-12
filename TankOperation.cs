@@ -19,17 +19,18 @@ namespace TurboTank
 
         public override EvalState GetScore(EvalState state, SignalWeights weights)
         {
+            Grid grid = new Grid(state.Grid);
+
             int score = 0;
-            Position leftPosition = state.Grid.GetLeft();
-            char item = state.Grid.GetItem(leftPosition);
+            Position leftPosition = grid.GetLeft();
+            char item = grid.GetItem(leftPosition);
             if (item == '_')
             {
                 score = 10;
             }
 
-            Position curPosition = state.Grid.Position;
-            Position newPosition = new Position(curPosition.X, curPosition.Y, leftPosition.Orientation);
-            return new EvalState(GetAction(), state, score, newPosition);
+            grid.Position = new Position(grid.Position.X, grid.Position.Y, leftPosition.Orientation);
+            return new EvalState(GetAction(), state, score, grid);
         }
     }
 
@@ -39,17 +40,18 @@ namespace TurboTank
 
         public override EvalState GetScore(EvalState state, SignalWeights weights)
         {
+            Grid grid = new Grid(state.Grid);
+
             int score = 0;
-            Position rightPosition = state.Grid.GetRight();
-            char item = state.Grid.GetItem(rightPosition);
+            Position rightPosition = grid.GetRight();
+            char item = grid.GetItem(rightPosition);
             if (item == '_')
             {
                 score = 10;
             }
 
-            Position curPosition = state.Grid.Position;
-            Position newPosition = new Position(curPosition.X, curPosition.Y, rightPosition.Orientation);
-            return new EvalState(GetAction(), state, score, newPosition);
+            grid.Position = new Position(grid.Position.X, grid.Position.Y, rightPosition.Orientation);
+            return new EvalState(GetAction(), state, score, grid);
         }
     }
 
@@ -59,35 +61,46 @@ namespace TurboTank
 
         public override EvalState GetScore(EvalState state, SignalWeights weights)
         {
+            Grid grid = new Grid(state.Grid);
+
             int distance = 1;
             int score = -1000;
 
-            if (state.Grid.Energy > 0)
+            if (grid.Energy > 0)
             {
-                foreach (Position aheadPosition in state.Grid.LookAhead())
+                foreach (Position aheadPosition in grid.LookAhead())
                 {
-                    char item = state.Grid.GetItem(aheadPosition);
+                    char item = grid.GetItem(aheadPosition);
                     if (item == 'W')
                     {
                         score = -100;
                         break;
                     }
-                    else if ((item == 'L') && (state.Grid.Energy >= 10))
+                    else if ((item == 'L') && (grid.Energy >= 10))
                     {
                         score = 100;
+                        grid.SetItem(aheadPosition, '_');
                         break;
                     }
                     else if (item == 'O')
                     {
                         score = (10 - distance) * 100;
+
+                        grid.SetItem(aheadPosition, '_');
+                        grid.EnemyHit = true;
                         break;
                     }
                     else if (item == 'B')
                     {
-                        if (state.Grid.Health >= 300 && state.Grid.Energy >= 10)
+                        // TODO: Or if here is going to get there first then shoot it!
+                        // TODO: Move if lasers are coming up from behind.
+                        // TODO: One each evaluation move the lasers so they are in the right place.
+                        // TODO: I should also influance going left or right based upon where the batteries and opponents are.
+                        if (grid.Health >= 280 && grid.Energy >= 10)
                         {
                             score = (15 - distance) * 10;
                         }
+                        grid.SetItem(aheadPosition, '_');
                         break;
                     }
 
@@ -95,8 +108,8 @@ namespace TurboTank
                 }
             }
 
-            EvalState fireState = new EvalState(GetAction(), state, score, state.Grid.Position);
-            fireState.Grid.Energy -= 1;
+            grid.Energy -= 1;
+            EvalState fireState = new EvalState(GetAction(), state, score, grid);
             return fireState;
         }
     }
@@ -107,14 +120,14 @@ namespace TurboTank
 
         public override EvalState GetScore(EvalState state, SignalWeights weights)
         {
+            Grid grid = new Grid(state.Grid);
+
             int distance = 1;
             int score = 0;
-            int energyGained = 0;
-            int healthGained = 0;
-            foreach (Position aheadPosition in state.Grid.LookAhead())
+            foreach (Position aheadPosition in grid.LookAhead())
             {
-                char item = state.Grid.GetItem(aheadPosition);
-                if (item == 'W')
+                char item = grid.GetItem(aheadPosition);
+                if ((item == 'W') || (item == 'O'))
                 {
                     if (distance == 1)
                     {
@@ -129,7 +142,7 @@ namespace TurboTank
                 }
                 else if (item == 'B')
                 {
-                    if (state.Grid.Health < 100 || state.Grid.Energy < 5)
+                    if (grid.Health < 100 || grid.Energy < 5)
                     {
                         score = 1000;
                     }
@@ -140,9 +153,11 @@ namespace TurboTank
 
                     if (distance == 1)
                     {
-                        energyGained = 5;
-                        healthGained = 20;
+                        grid.Energy += 5;
+                        grid.Health += 20;
                     }
+
+                    grid.SetItem(aheadPosition, '_');
                     break;
                 }
                 else if (item == '_')
@@ -153,10 +168,8 @@ namespace TurboTank
                 distance++;
             }
 
-            EvalState moveState = new EvalState(GetAction(), state, score, state.Grid.GetAhead());
-            moveState.Grid.Energy += energyGained;
-            moveState.Grid.Health += healthGained;
-            return moveState;
+            grid.Position = grid.GetAhead();
+            return new EvalState(GetAction(), state, score, grid);
         }
     }
 
@@ -166,7 +179,7 @@ namespace TurboTank
 
         public override EvalState GetScore(EvalState state, SignalWeights weights)
         {
-            return new EvalState(GetAction(), state, 0, state.Grid.Position);
+            return new EvalState(GetAction(), state, 0, state.Grid);
         }
     }
 }

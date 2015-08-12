@@ -22,15 +22,16 @@ namespace TurboTank
             this.Grid = grid;
         }
 
-        public EvalState(Action action, EvalState copy, int score, Position position)
-            : this(action, new Grid(copy.Grid, position))
+        public EvalState(Action action, EvalState previousState, int score, Grid grid)
+            : this(action, grid)
         {
-            if (copy.Evaluated)
+
+            if (previousState.Evaluated)
             {
-                this.previousState = copy;
+                this.previousState = previousState;
             }
 
-            this.Score = copy.Score + score;
+            this.Score = previousState.Score + score;
         }
 
         public override string ToString()
@@ -42,10 +43,17 @@ namespace TurboTank
             }
             else
             {
-                prev = string.Format("{0}", Action);
+                prev = "Start";
             }
 
-            return string.Format("{0} -> {1} {2} {3}", prev, Action, Score, Grid);
+            if (prev.Length > 1000)
+            {
+                return prev;
+            }
+            else
+            {
+                return string.Format("{0} -> {1} {2} {3}", prev, Action, Score, Grid);
+            }
         }
 
         public Action GetRootAction()
