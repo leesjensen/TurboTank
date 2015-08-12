@@ -111,7 +111,7 @@ ________________________";
         }
 
         [TestMethod]
-        public void ForwardForBattery()
+        public void ForwardForBatteryFar()
         {
             joinResponse["grid"] =
 @"________________________
@@ -124,6 +124,32 @@ _WWWWWWWWW______________
 _____W__________________
 _____W_WWWWW____________
 _________WWWWWWWW_B_____
+________________________
+____O______WWWW_________
+________________________
+________________________
+____WWW_________________
+________________________";
+
+            TestTankClient client = new TestTankClient(joinResponse, TurboTank.Action.Move);
+            Game game = new Game(client);
+            game.Run(new SignalWeights());
+        }
+
+        [TestMethod]
+        public void ForwardForBatteryNear()
+        {
+            joinResponse["grid"] =
+@"________________________
+___W_____WWWWWWWW_______
+___W_W__________________
+___W_W____________X_____
+___W_W____________B_____
+___W_W__________________
+_WWWWWWWWW______________
+_____W__________________
+_____W_WWWWW____________
+_________WWWWWWWW_______
 ________________________
 ____O______WWWW_________
 ________________________

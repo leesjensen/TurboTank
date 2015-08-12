@@ -8,22 +8,23 @@ namespace TurboTank
 {
     public class Beam
     {
-        private Action startAction;
+        public int CandidateCount;
+        public Action StartAction;
         private const int MaxSize = 10;
         EvalState[] bestStates = new EvalState[MaxSize];
         List<EvalState> candidates = new List<EvalState>();
 
         public Beam(TankOperation operation, Grid grid, SignalWeights weights)
         {
-            startAction = operation.GetAction();
+            StartAction = operation.GetAction();
             EvalState startingState = new EvalState(operation.GetAction(), grid);
             bestStates[0] = operation.GetScore(startingState, weights);
         }
 
         public void Add(EvalState candidateState)
         {
+            CandidateCount++;
             candidates.Add(candidateState);
-            Program.Log("         candidate: ({0}) {1}", startAction, candidateState);
         }
 
         public void Evaluate()

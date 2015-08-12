@@ -52,7 +52,6 @@ namespace TurboTank
         static public void Log(string format, params object[] args)
         {
 #if DEBUG
-            System.Diagnostics.Debug.WriteLine(format, args);
             Console.WriteLine(format, args);
 #endif
         }

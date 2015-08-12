@@ -84,7 +84,7 @@ namespace TurboTank
                     }
                     else if (item == 'B')
                     {
-                        if (state.Grid.Health >= 300)
+                        if (state.Grid.Health >= 300 && state.Grid.Energy >= 10)
                         {
                             score = (15 - distance) * 10;
                         }
@@ -114,9 +114,22 @@ namespace TurboTank
             foreach (Position aheadPosition in state.Grid.LookAhead())
             {
                 char item = state.Grid.GetItem(aheadPosition);
-                if (item == 'B')
+                if (item == 'W')
                 {
-                    if (state.Grid.Health < 100)
+                    if (distance == 1)
+                    {
+                        score = -1000;
+                    }
+                    break;
+                }
+                else if (item == 'L')
+                {
+                    score = -200;
+                    break;
+                }
+                else if (item == 'B')
+                {
+                    if (state.Grid.Health < 100 || state.Grid.Energy < 5)
                     {
                         score = 1000;
                     }
@@ -130,16 +143,6 @@ namespace TurboTank
                         energyGained = 5;
                         healthGained = 20;
                     }
-                    break;
-                }
-                else if (item == 'L')
-                {
-                    score = -200;
-                    break;
-                }
-                else if (item == 'W' && distance == 1)
-                {
-                    score = -1000;
                     break;
                 }
                 else if (item == '_')

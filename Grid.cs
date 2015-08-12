@@ -113,8 +113,8 @@ namespace TurboTank
             Position lookPosition = GetAhead();
             while (lookPosition.X != Position.X || lookPosition.Y != Position.Y)
             {
-                lookPosition = GetAhead(lookPosition);
                 yield return lookPosition;
+                lookPosition = GetAhead(lookPosition);
             }
         }
 

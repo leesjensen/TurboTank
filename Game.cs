@@ -84,6 +84,8 @@ namespace TurboTank
 
         public Game(TankClient client)
         {
+            ThreadPool.SetMinThreads(operations.Length, 4);
+
             this.client = client;
             dynamic joinResponse = client.Start();
             turnTimeout = (joinResponse.config.turn_timeout / 1000) - 5000;
@@ -111,52 +113,53 @@ namespace TurboTank
             }
         }
 
-
-        static TankOperation[] operations = new TankOperation[] { new TankOperationLeft(), new TankOperationRight(), new TankOperationMove(), new TankOperationFire(), new TankOperationNoop() };
+        static TankOperation[] operations = new TankOperation[] { new TankOperationLeft(), new TankOperationRight(), new TankOperationMove(), new TankOperationFire() };
 
         public Action GetBestAction(SignalWeights weights)
         {
             long turnStartTime = Stopwatch.GetTimestamp();
 
-            int evalCount = 0;
-            object bestStateLock = new object();
-            EvalState bestState = new EvalState(Action.Noop, grid);
-
-//            TankOperation startingOperation = new TankOperationMove();
-            Parallel.ForEach(operations, (startingOperation) =>
+            List<Beam> beams = new List<Beam>();
+            foreach (var operation in operations)
             {
-                int depth = 0;
-                Beam beam = new Beam(startingOperation, grid, weights);
+                beams.Add(new Beam(operation, grid, weights));
+            }
 
-
-                while (!IsTimeout(turnTimeout, turnStartTime))
-                {
-                    foreach (EvalState state in beam.Iterate())
+            int depth = 0;
+            while (!IsTimeout(turnTimeout, turnStartTime))
+            {
+                depth++;
+                    Parallel.ForEach(beams, (beam) =>
                     {
-                        state.Grid.Health--;
-                        depth++;
-                        foreach (TankOperation operation in operations)
-                        {
-                            Interlocked.Increment(ref evalCount);
-                            beam.Add(operation.GetScore(state, weights));
-                        }
-                    }
 
-                    beam.Evaluate();
-                }
+                            foreach (EvalState state in beam.Iterate())
+                            {
+                                state.Grid.Health--;
+                                foreach (TankOperation operation in operations)
+                                {
+                                    EvalState opState = operation.GetScore(state, weights);
+                                    Program.Log("         ({0}) {1}", beam.StartAction, opState);
+                                    beam.Add(opState);
+                                }
+                            }
 
-                lock (bestStateLock)
+                            beam.Evaluate();
+                    });
+            }
+
+            EvalState bestState = new EvalState(Action.Noop, grid);
+            foreach (var beam in beams)
+            {
+                EvalState operationBest = beam.GetBest();
+                Program.Log("   Beam {0}: {1} depth, {2} candidates, ({3}) {4}", beam.StartAction, depth, beam.CandidateCount, operationBest.Score, operationBest);
+                if (bestState.Score < operationBest.Score)
                 {
-                    EvalState operationBest = beam.GetBest();
-                    Program.Log("   {0} depth, Best: ({1}) {2}", evalCount, operationBest.Score, operationBest);
-                    if (bestState.Score < operationBest.Score)
-                    {
-                        bestState = operationBest;
-                    }
+                    bestState = operationBest;
                 }
-            });
+            }
 
-            Program.Log("FINAL: {0} evaluated, Best: ({1}) {2}", evalCount, bestState.Score, bestState);
+
+            Program.Log("FINAL: Best: ({0}) {1}", bestState.Score, bestState);
 
             return bestState.GetRootAction();
         }
