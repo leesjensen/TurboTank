@@ -8,14 +8,28 @@ namespace TurboTank
 {
     public abstract class TankOperation
     {
-        public abstract Action GetAction();
+        public abstract TankAction GetAction();
         public abstract EvalState GetScore(EvalState state, SignalWeights weights);
+
+        protected static double CalculateBatteryNeedMultiplier(Grid grid)
+        {
+            double needMultiplier = 1;
+            if (grid.Health < 30 || grid.Energy < 2)
+            {
+                needMultiplier = 2;
+            }
+            else if (grid.Health > 280 && grid.Energy > 9)
+            {
+                needMultiplier = .8;
+            }
+            return needMultiplier;
+        }
     }
 
 
     public class TankOperationLeft : TankOperation
     {
-        public override Action GetAction() { return Action.Left; }
+        public override TankAction GetAction() { return TankAction.Left; }
 
         public override EvalState GetScore(EvalState state, SignalWeights weights)
         {
@@ -36,7 +50,7 @@ namespace TurboTank
 
     public class TankOperationRight : TankOperation
     {
-        public override Action GetAction() { return Action.Right; }
+        public override TankAction GetAction() { return TankAction.Right; }
 
         public override EvalState GetScore(EvalState state, SignalWeights weights)
         {
@@ -57,18 +71,19 @@ namespace TurboTank
 
     public class TankOperationFire : TankOperation
     {
-        public override Action GetAction() { return Action.Fire; }
+        public override TankAction GetAction() { return TankAction.Fire; }
 
         public override EvalState GetScore(EvalState state, SignalWeights weights)
         {
             Grid grid = new Grid(state.Grid);
 
-            int distance = 1;
             int score = -1000;
 
-            if (grid.Energy > 0)
+            if (grid.Energy > 0 && !grid.ItemBehind('L', 3) && !grid.ItemBehind('O', 8))
             {
-                foreach (Position aheadPosition in grid.LookAhead())
+                int maxDistance = 10;
+                int distance = 1;
+                foreach (Position aheadPosition in grid.LookAhead(maxDistance))
                 {
                     char item = grid.GetItem(aheadPosition);
                     if (item == 'W')
@@ -84,7 +99,7 @@ namespace TurboTank
                     }
                     else if (item == 'O')
                     {
-                        score = (10 - distance) * 100;
+                        score = (maxDistance - distance) * 100;
 
                         grid.SetItem(aheadPosition, '_');
                         grid.EnemyHit = true;
@@ -92,13 +107,13 @@ namespace TurboTank
                     }
                     else if (item == 'B')
                     {
-                        // TODO: Or if here is going to get there first then shoot it!
-                        // TODO: Move if lasers are coming up from behind.
+                        // TODO: if opponent is going to get the battery first then shoot it!
                         // TODO: One each evaluation move the lasers so they are in the right place.
                         // TODO: I should also influance going left or right based upon where the batteries and opponents are.
-                        if (grid.Health >= 280 && grid.Energy >= 10)
+                        // TODO: Opponent behind what do we do? Shoot or turn around?
+                        if (CalculateBatteryNeedMultiplier(grid) < 1)
                         {
-                            score = (15 - distance) * 10;
+                            score = (maxDistance - distance) * 10;
                         }
                         grid.SetItem(aheadPosition, '_');
                         break;
@@ -116,56 +131,67 @@ namespace TurboTank
 
     public class TankOperationMove : TankOperation
     {
-        public override Action GetAction() { return Action.Move; }
+        public override TankAction GetAction() { return TankAction.Move; }
 
         public override EvalState GetScore(EvalState state, SignalWeights weights)
         {
             Grid grid = new Grid(state.Grid);
 
-            int distance = 1;
             int score = 0;
-            foreach (Position aheadPosition in grid.LookAhead())
+
+            if (grid.ItemBehind('L', 3) || grid.ItemBehind('O', 3))
             {
-                char item = grid.GetItem(aheadPosition);
-                if ((item == 'W') || (item == 'O'))
+                score = -1000;
+            }
+            else
+            {
+                int maxDistance = 15;
+                int distance = 1;
+                foreach (Position aheadPosition in grid.LookAhead(maxDistance))
                 {
-                    if (distance == 1)
+                    char item = grid.GetItem(aheadPosition);
+                    if (item == 'W')
                     {
-                        score = -1000;
+                        if (distance == 1)
+                        {
+                            score = -1000;
+                        }
+                        break;
                     }
-                    break;
-                }
-                else if (item == 'L')
-                {
-                    score = -200;
-                    break;
-                }
-                else if (item == 'B')
-                {
-                    if (grid.Health < 100 || grid.Energy < 5)
+                    if (item == 'O')
                     {
-                        score = 1000;
+                        if (grid.Energy == 0 && distance < 5)
+                        {
+                            score = -1000;
+                        }
+                        break;
                     }
-                    else
+                    else if (item == 'L')
                     {
-                        score = (15 - distance) * 50;
+                        score = -200;
+                        break;
+                    }
+                    else if (item == 'B')
+                    {
+                        int distanceMultiplier = (maxDistance - distance);
+                        score = (int)(((double)45) * distanceMultiplier * CalculateBatteryNeedMultiplier(grid));
+
+                        if (distance == 1)
+                        {
+                            grid.Energy += 5;
+                            grid.Health += 20;
+                        }
+
+                        grid.SetItem(aheadPosition, '_');
+                        break;
+                    }
+                    else if (item == '_')
+                    {
+                        score = 15;
                     }
 
-                    if (distance == 1)
-                    {
-                        grid.Energy += 5;
-                        grid.Health += 20;
-                    }
-
-                    grid.SetItem(aheadPosition, '_');
-                    break;
+                    distance++;
                 }
-                else if (item == '_')
-                {
-                    score = 15;
-                }
-
-                distance++;
             }
 
             grid.Position = grid.GetAhead();
@@ -175,7 +201,7 @@ namespace TurboTank
 
     public class TankOperationNoop : TankOperation
     {
-        public override Action GetAction() { return Action.Noop; }
+        public override TankAction GetAction() { return TankAction.Noop; }
 
         public override EvalState GetScore(EvalState state, SignalWeights weights)
         {

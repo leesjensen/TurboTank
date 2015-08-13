@@ -9,7 +9,7 @@ namespace TurboTank
     public class Beam
     {
         public int CandidateCount = 1;
-        public Action StartAction;
+        public TankAction StartAction;
         private const int MaxSize = 10;
         EvalState[] bestStates = new EvalState[MaxSize];
         List<EvalState> candidates = new List<EvalState>();

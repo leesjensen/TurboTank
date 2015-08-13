@@ -109,6 +109,15 @@ namespace TurboTank
             else throw new Exception("Invalid orientation");
         }
 
+        public Position GetBehind(Position position)
+        {
+            if (position.Orientation == Orientation.North) return GetSouthPosition(Position);
+            else if (position.Orientation == Orientation.South) return GetNorthPosition(Position);
+            else if (position.Orientation == Orientation.East) return GetWestPosition(Position);
+            else if (position.Orientation == Orientation.West) return GetEastPosition(Position);
+            else throw new Exception("Invalid orientation");
+        }
+
 
         public Position GetAhead()
         {
@@ -124,10 +133,28 @@ namespace TurboTank
             else throw new Exception("Invalid orientation");
         }
 
-        public IEnumerable<Position> LookAhead()
+        public bool ItemBehind(char item, int maxDistance)
+        {
+            int distance = 0;
+            Position lookPosition = GetBehind(Position);
+            while (distance < maxDistance)
+            {
+                if (GetItem(lookPosition) == item)
+                {
+                    return true;
+                }
+
+                lookPosition = GetAhead(lookPosition);
+                distance++;
+            }
+
+            return false;
+        }
+
+        public IEnumerable<Position> LookAhead(int maxDistance)
         {
             Position lookPosition = GetAhead();
-            while (lookPosition.X != Position.X || lookPosition.Y != Position.Y)
+            while (maxDistance-- > 0 && (lookPosition.X != Position.X || lookPosition.Y != Position.Y))
             {
                 yield return lookPosition;
                 lookPosition = GetAhead(lookPosition);

@@ -11,7 +11,7 @@ namespace TurboTank
     public interface TankClient
     {
         dynamic Start();
-        dynamic TakeAction(Action move);
+        dynamic TakeAction(TankAction move);
     }
 
     public class HttpTankClient : TankClient
@@ -37,7 +37,7 @@ namespace TurboTank
             return joinResponse;
         }
 
-        public dynamic TakeAction(Action move)
+        public dynamic TakeAction(TankAction move)
         {
             Dictionary<string, string> headers = new Dictionary<string, string>();
             headers.Add("X-Sm-Playerid", PlayerId);
@@ -51,9 +51,9 @@ namespace TurboTank
     {
         private DynObject startResponse;
         private DynObject takeActionResponse;
-        private Action expectedAction;
+        private TankAction expectedAction;
 
-        public TestTankClient(DynObject startResponse, Action expectedAction, DynObject takeActionResponse = null)
+        public TestTankClient(DynObject startResponse, TankAction expectedAction, DynObject takeActionResponse = null)
         {
             this.expectedAction = expectedAction;
             this.startResponse = startResponse;
@@ -92,9 +92,9 @@ ________________________'
             return startResponse;
         }
 
-        public dynamic TakeAction(Action move)
+        public dynamic TakeAction(TankAction move)
         {
-            if (move != expectedAction) throw new Exception("Got: " + move + ", expected: " + expectedAction);
+            if ((move & expectedAction) == 0) throw new Exception("Got: " + move + ", expected: " + expectedAction);
 
             return takeActionResponse;
         }

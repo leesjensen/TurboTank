@@ -8,7 +8,7 @@ namespace TurboTank
 {
     public class EvalState
     {
-        public Action Action;
+        public TankAction Action;
         public int Score;
         public Grid Grid;
 
@@ -16,13 +16,13 @@ namespace TurboTank
 
         public bool Evaluated = false;
 
-        public EvalState(Action action, Grid grid)
+        public EvalState(TankAction action, Grid grid)
         {
             this.Action = action;
             this.Grid = grid;
         }
 
-        public EvalState(Action action, EvalState previousState, int score, Grid grid)
+        public EvalState(TankAction action, EvalState previousState, int score, Grid grid)
             : this(action, grid)
         {
 
@@ -56,7 +56,7 @@ namespace TurboTank
             }
         }
 
-        public Action GetRootAction()
+        public TankAction GetRootAction()
         {
             EvalState rootState = this;
             while (rootState.previousState != null)

@@ -10,14 +10,14 @@ using System.Threading.Tasks;
 
 namespace TurboTank
 {
-
-    public enum Action
+    [Flags]
+    public enum TankAction
     {
-        Left,
-        Right,
-        Fire,
-        Move,
-        Noop
+        Left = 1,
+        Right = 2,
+        Fire = 4,
+        Move = 8,
+        Noop = 16
     }
 
     public enum Orientation
@@ -96,7 +96,7 @@ namespace TurboTank
 
             while (status == Status.Running)
             {
-                Action action = GetBestAction(grid, weights);
+                TankAction action = GetBestAction(grid, weights);
                 dynamic moveResponse = client.TakeAction(action);
                 status = ParseStatus(moveResponse, grid);
             }
@@ -104,7 +104,7 @@ namespace TurboTank
 
         static TankOperation[] operations = new TankOperation[] { new TankOperationLeft(), new TankOperationRight(), new TankOperationMove(), new TankOperationFire() };
 
-        public Action GetBestAction(Grid grid, SignalWeights weights)
+        public TankAction GetBestAction(Grid grid, SignalWeights weights)
         {
             long turnStartTime = Stopwatch.GetTimestamp();
 
@@ -141,7 +141,7 @@ namespace TurboTank
                 });
             }
 
-            EvalState bestState = new EvalState(Action.Noop, grid);
+            EvalState bestState = new EvalState(TankAction.Noop, grid);
             foreach (var beam in beams)
             {
                 EvalState operationBest = beam.GetBest();
