@@ -52,7 +52,11 @@ namespace TurboTank
             }
             else
             {
-                return string.Format("{0} -> {1} {2} {3}", prev, Action, Score, Grid);
+                string result = "";
+                if (Grid.BatteryFound) result += "@";
+                if (Grid.EnemyHit) result += "!";
+
+                return string.Format("{0} -> {1}{2} {3} {4}", prev, Action, result, Score, Grid);
             }
         }
 

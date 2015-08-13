@@ -180,6 +180,7 @@ namespace TurboTank
                         {
                             grid.Energy += 5;
                             grid.Health += 20;
+                            grid.BatteryFound = true;
                         }
 
                         grid.SetItem(aheadPosition, '_');
