@@ -164,6 +164,8 @@ namespace TurboTank
             Status status;
             Enum.TryParse(moveResponse.status, true, out status);
 
+            Console.WriteLine(moveResponse.grid.ToString());
+
             grid.Update(moveResponse);
 
             return status;
