@@ -141,7 +141,7 @@ namespace TurboTank
             if (!int.TryParse(request.GetParam("port"), out port)) { port = 8080; }
             string gameId = request.GetParam("gameId");
 
-            TankClient client = new HttpTankClient(server, port, gameId);
+            TankClient client = new HttpTankClient(server, port, gameId, "Lee");
             Game game = new Game(client);
 
             ThreadUtil.RunWorkerThread((state) =>

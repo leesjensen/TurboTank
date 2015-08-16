@@ -17,9 +17,7 @@ namespace TurboTank
         public const string DefaultConfigFilename = "config.json";
 
         private const string Syntax =
-                "TurboTank [-config=<config file>]\n" +
-                "    Starts TurboTank.\n" +
-                "    config: The configuration file containing the class to execute. If no config is specified then + " + DefaultConfigFilename + " is used.\n";
+                "TurboTank <hostname> <port> <gamename> <username>\n";
 
 
 
@@ -31,13 +29,36 @@ namespace TurboTank
             JsonArgs commandLine = new JsonArgs(args);
             if (!commandLine.HasParam("?"))
             {
-                try
+                string server = args[0];
+                int port = int.Parse(args[1]);
+                string gameId = args[2];
+                string userId = args[2];
+
+                while (true)
                 {
-                    ExecuteService(commandLine);
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine("ERROR: " + ex);
+                    try
+                    {
+                        Console.WriteLine("Starting game ...");
+                        TankClient client = new HttpTankClient(server, port, gameId, userId);
+                        Game game = new Game(client);
+                        game.Run(new SignalWeights());
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine("ERROR: " + ex);
+                    }
+
+                    ConsoleKey key = ConsoleKey.N;
+                    while (key != ConsoleKey.Y)
+                    {
+                        Console.WriteLine("\n\nWould you like to play again (y, or n)?\n");
+                        key = Console.ReadKey(true).Key;
+                        if (key == ConsoleKey.N)
+                        {
+                            Console.WriteLine("Thanks for playing!");
+                            return 0;
+                        }
+                    }
                 }
             }
             else

@@ -19,9 +19,11 @@ namespace TurboTank
         private HttpClient client;
         public string GameId;
         public string PlayerId;
+        public string userId;
 
-        public HttpTankClient(string server, int port, string gameId)
+        public HttpTankClient(string server, int port, string gameId, string userId)
         {
+            this.userId = userId;
             this.GameId = gameId;
             this.client = new HttpClient(server, port);
         }
@@ -29,7 +31,7 @@ namespace TurboTank
         public dynamic Start()
         {
             Dictionary<string, string> headers = new Dictionary<string, string>();
-            headers.Add("X-Sm-Playermoniker", "Lee");
+            headers.Add("X-Sm-Playermoniker", userId);
 
             dynamic joinResponse = client.GetJsonResponse("/game/" + GameId + "/join", "POST", "", headers);
             PlayerId = headers["X-Sm-Playerid"];
