@@ -36,14 +36,30 @@ namespace TurboTank
             Grid grid = new Grid(state.Grid);
 
             int score = 0;
-            Position leftPosition = grid.GetLeft();
-            char item = grid.GetItem(leftPosition);
-            if (item == '_')
+            if (state.Action == TankAction.Right)
             {
-                score = 10;
+                score = -100;
+            }
+            else
+            {
+                Position leftPosition = grid.GetLeft();
+                char item = grid.GetItem(leftPosition);
+                if (item == '_')
+                {
+                    score = 1;
+                }
+                else if (item == 'B')
+                {
+                    score = 50;
+                }
+                else if (item == 'O')
+                {
+                    score = (grid.Energy > 0 ? 60 : -100);
+                }
+            
+                grid.Position = new Position(grid.Position.X, grid.Position.Y, leftPosition.Orientation);
             }
 
-            grid.Position = new Position(grid.Position.X, grid.Position.Y, leftPosition.Orientation);
             return new EvalState(GetAction(), state, score, grid);
         }
     }
@@ -57,14 +73,30 @@ namespace TurboTank
             Grid grid = new Grid(state.Grid);
 
             int score = 0;
-            Position rightPosition = grid.GetRight();
-            char item = grid.GetItem(rightPosition);
-            if (item == '_')
+            if (state.Action == TankAction.Left)
             {
-                score = 10;
+                score = -100;
+            }
+            else
+            {
+                Position rightPosition = grid.GetRight();
+                char item = grid.GetItem(rightPosition);
+                if (item == '_')
+                {
+                    score = 1;
+                }
+                else if (item == 'B')
+                {
+                    score = 50;
+                }
+                else if (item == 'O')
+                {
+                    score = (grid.Energy > 0 ? 60 : -100);
+                }
+
+                grid.Position = new Position(grid.Position.X, grid.Position.Y, rightPosition.Orientation);
             }
 
-            grid.Position = new Position(grid.Position.X, grid.Position.Y, rightPosition.Orientation);
             return new EvalState(GetAction(), state, score, grid);
         }
     }
@@ -188,7 +220,7 @@ namespace TurboTank
                     }
                     else if (item == '_')
                     {
-                        score = 15;
+                        score = 2;
                     }
 
                     distance++;

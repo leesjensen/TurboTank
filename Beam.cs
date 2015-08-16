@@ -30,6 +30,20 @@ namespace TurboTank
             }
         }
 
+        private const int MinSuccessfulScore = 700; 
+
+        public bool StillSearching()
+        {
+            return (bestStates[0].Score > 0 && bestStates[0].Score < MinSuccessfulScore);
+
+        }
+
+        public bool WasSuccessful()
+        {
+            return (bestStates[0].Score >= MinSuccessfulScore);
+
+        }
+
         public void Evaluate()
         {
             foreach (var candidateState in candidates)
@@ -53,12 +67,23 @@ namespace TurboTank
                             bestStates[pos] = candidateState;
                             break;
                         }
+                        else if (pos > 0 && bestStates[pos].Evaluated)
+                        {
+                            for (int deletePos = pos; deletePos < MaxSize; deletePos++)
+                            {
+                                bestStates[deletePos] = null;
+                            }
+
+                            bestStates[pos] = candidateState;
+                            break;
+                        }
                     }
                 }
             }
 
             candidates.Clear();
         }
+
 
         public IEnumerable<EvalState> Iterate()
         {

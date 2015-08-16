@@ -61,6 +61,7 @@ namespace TurboTank
     {
         private TankClient client;
         private long turnTimeout;
+        private int numberOfTurns = 0;
 
         public class GameConstants
         {
@@ -96,6 +97,8 @@ namespace TurboTank
 
             while (status == Status.Running)
             {
+                numberOfTurns++;
+
                 TankAction action = GetBestAction(grid, weights);
                 dynamic moveResponse = client.TakeAction(action);
                 status = ParseStatus(moveResponse, grid);
@@ -108,36 +111,44 @@ namespace TurboTank
         {
             long turnStartTime = Stopwatch.GetTimestamp();
 
-            bool enemyHit = false;
+            bool successfulActionFound = false;
             int depth = 1;
             List<Beam> beams = new List<Beam>();
-            foreach (var operation in operations)
             {
-                Beam beam = new Beam(operation, grid, weights);
-                beams.Add(beam);
+                foreach (var operation in operations)
+                //TankOperation operation = operations[1];
+                {
+                    Beam beam = new Beam(operation, grid, weights);
+                    beams.Add(beam);
 
-                enemyHit = (enemyHit || beam.GetBest().Grid.EnemyHit);
+                    successfulActionFound = (successfulActionFound || beam.WasSuccessful());
+                }
             }
 
-            while (!enemyHit && !IsTimeout(turnTimeout, turnStartTime))
+            int beamCompletedCount = 0;
+            while (!successfulActionFound && (beamCompletedCount < beams.Count) && !IsTimeout(turnTimeout, turnStartTime))
             {
                 depth++;
                 Parallel.ForEach(beams, (beam) =>
                 {
-
-                    foreach (EvalState state in beam.Iterate())
+                    if (beam.StillSearching())
                     {
-                        state.Grid.Health--;
-                        foreach (TankOperation operation in operations)
+                        foreach (EvalState state in beam.Iterate())
                         {
-                            EvalState opState = operation.GetScore(state, weights);
-                            beam.Add(opState);
+                            state.Grid.Health--;
+                            foreach (TankOperation operation in operations)
+                            {
+                                EvalState opState = operation.GetScore(state, weights);
+                                beam.Add(opState);
+                            }
                         }
+
+                        beam.Evaluate();
+
+                        beamCompletedCount += (beam.StillSearching() ? 0 : 1);
+
+                        successfulActionFound = (successfulActionFound || beam.WasSuccessful());
                     }
-
-                    beam.Evaluate();
-
-                    enemyHit = (enemyHit || beam.GetBest().Grid.EnemyHit);
                 });
             }
 
@@ -145,7 +156,7 @@ namespace TurboTank
             foreach (var beam in beams)
             {
                 EvalState operationBest = beam.GetBest();
-                Console.WriteLine("   Beam {0} - hit: {1}, depth: {2}, candidates: {3}, ({4}) {5}", beam.StartAction, operationBest.Grid.EnemyHit, depth, beam.CandidateCount, operationBest.Score, operationBest);
+                Console.WriteLine("   Beam {0} ({3} pts) - depth: {1}, candidates: {2} - {4}", beam.StartAction, depth, beam.CandidateCount, operationBest.Score, operationBest);
                 if (bestState.Score < operationBest.Score)
                 {
                     bestState = operationBest;
@@ -153,7 +164,7 @@ namespace TurboTank
             }
 
 
-            Console.WriteLine("FINAL - hit: {0} Best: ({1}) {2}", enemyHit, bestState.Score, bestState);
+            Console.WriteLine("TURN {0} - Best: ({1}) {2}", numberOfTurns, bestState.Score, bestState);
 
             return bestState.GetRootAction();
         }

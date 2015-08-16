@@ -32,7 +32,7 @@ namespace TurboTank
                 string server = args[0];
                 int port = int.Parse(args[1]);
                 string gameId = args[2];
-                string userId = args[2];
+                string userId = args[3];
 
                 while (true)
                 {

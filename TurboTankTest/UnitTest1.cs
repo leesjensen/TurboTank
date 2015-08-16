@@ -9,7 +9,7 @@ namespace TurboTankTest
     public class UnitTest1
     {
 
-        DynObject joinResponse = DynObject.Parse(@"{
+        DynObject initialConfig = DynObject.Parse(@"{
                 'status':'running',
                 'config':
                 {
@@ -29,11 +29,70 @@ namespace TurboTankTest
                 'health':300,
                 'grid':null
         }");
+  
+        [TestMethod]
+        public void TurnRightToGetBattery()
+        {
+            initialConfig["grid"] =
+@"_____________________W__
+___________WWWWWWWWWWW__
+_________B___W_B_____W__
+_____________________W__
+_____________________W__
+_WWWWWWWWWWW_________W__
+________________________
+________________________
+_______________W__W_____
+_______________W__W_____
+_____X____________W_____
+___O_B____________W___L_
+__________________W_____
+__________________W_____
+________________________
+________________________";
+
+            initialConfig["orientation"] = "east";
+
+            TestTankClient client = new TestTankClient(initialConfig, TankAction.Right);
+            Game game = new Game(client);
+            game.Run(new SignalWeights());
+        }
+
+
+        [TestMethod]
+        public void OutOfEnergyGoGetBattery()
+        {
+            initialConfig["grid"] =
+@"________________________
+________________W_______
+________________W______W
+____________W___W______W
+________________W______W
+_______________________W
+________________________
+________________________
+________WWWWWWWW________
+________________B_______
+________________________
+___WWWWWWWWWWWWWW_______
+______________________X_
+______________________O_
+________________________
+________________________";
+
+            initialConfig["energy"] = 0;
+
+            TestTankClient client = new TestTankClient(initialConfig, TankAction.Fire);
+            Game game = new Game(client);
+            game.Run(new SignalWeights());
+        }
+
+        
 
         [TestMethod]
         public void Fire()
         {
-            joinResponse["grid"] = 
+            initialConfig["grid"] = 
 @"________________________
 ___W_____WWWWWWWW_______
 ___W_W__________________
@@ -51,7 +110,7 @@ ________________________
 ____WWW_________________
 ________________________";
 
-            TestTankClient client = new TestTankClient(joinResponse, TankAction.Fire);
+            TestTankClient client = new TestTankClient(initialConfig, TankAction.Fire);
             Game game = new Game(client);
             game.Run(new SignalWeights());
         }
@@ -60,7 +119,7 @@ ________________________";
         [TestMethod]
         public void TurnForBattery()
         {
-            joinResponse["grid"] = 
+            initialConfig["grid"] = 
 @"________________________
 ___W_____WWWWWWWW_______
 ___W_W__________________
@@ -78,7 +137,7 @@ ________________________
 ____WWW_________________
 ________________________";
 
-            TestTankClient client = new TestTankClient(joinResponse, TankAction.Right);
+            TestTankClient client = new TestTankClient(initialConfig, TankAction.Right);
             Game game = new Game(client);
             game.Run(new SignalWeights());
         }
@@ -87,7 +146,7 @@ ________________________";
         [TestMethod]
         public void WallAhead()
         {
-            joinResponse["grid"] =
+            initialConfig["grid"] =
 @"________________________
 ___W_____WWWWWWWW_______
 ___W_W__________________
@@ -105,7 +164,7 @@ ________________________
 ____WWW_________________
 ________________________";
 
-            TestTankClient client = new TestTankClient(joinResponse, TankAction.Right);
+            TestTankClient client = new TestTankClient(initialConfig, TankAction.Right);
             Game game = new Game(client);
             game.Run(new SignalWeights());
         }
@@ -113,7 +172,7 @@ ________________________";
         [TestMethod]
         public void ForwardForBatteryFar()
         {
-            joinResponse["grid"] =
+            initialConfig["grid"] =
 @"________________________
 ___W_____WWWWWWWW_______
 ___W_W__________________
@@ -131,7 +190,7 @@ ________________________
 ____WWW_________________
 ________________________";
 
-            TestTankClient client = new TestTankClient(joinResponse, TankAction.Move);
+            TestTankClient client = new TestTankClient(initialConfig, TankAction.Move);
             Game game = new Game(client);
             game.Run(new SignalWeights());
         }
@@ -139,7 +198,7 @@ ________________________";
         [TestMethod]
         public void ForwardForBatteryNear()
         {
-            joinResponse["grid"] =
+            initialConfig["grid"] =
 @"________________________
 ___W_____WWWWWWWW_______
 ___W_W__________________
@@ -157,7 +216,7 @@ ________________________
 ____WWW_________________
 ________________________";
 
-            TestTankClient client = new TestTankClient(joinResponse, TankAction.Move);
+            TestTankClient client = new TestTankClient(initialConfig, TankAction.Move);
             Game game = new Game(client);
             game.Run(new SignalWeights());
         }
@@ -166,7 +225,7 @@ ________________________";
         [TestMethod]
         public void MultipleBatteriesWithOpponentNearOutOfEnergy()
         {
-            joinResponse["grid"] =
+            initialConfig["grid"] =
 @"________________________
 ___W_____WWWWWWWW_______
 ___W_W_____B____________
@@ -184,17 +243,17 @@ ________________________
 ____WWW_________________
 ________________________";
 
-            joinResponse["energy"] = 0;
-            joinResponse["health"] = 30;
+            initialConfig["energy"] = 0;
+            initialConfig["health"] = 30;
 
-            TestTankClient client = new TestTankClient(joinResponse, TankAction.Move);
+            TestTankClient client = new TestTankClient(initialConfig, TankAction.Move);
             Game game = new Game(client);
             game.Run(new SignalWeights());
         }
         [TestMethod]
         public void DontNeedBattery()
         {
-            joinResponse["grid"] =
+            initialConfig["grid"] =
 @"________________________
 ___W_____WWWWWWWW_______
 ___W_W_O________________
@@ -212,9 +271,9 @@ ________________________
 ____WWW_________________
 ________________________";
 
-            joinResponse["energy"] = 10;
+            initialConfig["energy"] = 10;
 
-            TestTankClient client = new TestTankClient(joinResponse, TankAction.Move);
+            TestTankClient client = new TestTankClient(initialConfig, TankAction.Move);
             Game game = new Game(client);
             game.Run(new SignalWeights());
         }
@@ -223,7 +282,7 @@ ________________________";
         [TestMethod]
         public void OpponentBehindMe()
         {
-            joinResponse["grid"] =
+            initialConfig["grid"] =
 @"________________________
 ___W_____WWWWWWWW_______
 ___W_W__________________
@@ -241,7 +300,7 @@ ________________________
 ____WWW_________________
 ________________________";
 
-            TestTankClient client = new TestTankClient(joinResponse, TankAction.Left);
+            TestTankClient client = new TestTankClient(initialConfig, TankAction.Left);
             Game game = new Game(client);
             game.Run(new SignalWeights());
         }
@@ -250,7 +309,7 @@ ________________________";
         [TestMethod]
         public void ShotInTheBack()
         {
-            joinResponse["grid"] =
+            initialConfig["grid"] =
 @"________________________
 ___W_____WWWWWWWW_______
 ___W_W_____________L____
@@ -268,7 +327,7 @@ ________________________
 ____WWW_________________
 ________________________";
 
-            TestTankClient client = new TestTankClient(joinResponse, TankAction.Right | TankAction.Left);
+            TestTankClient client = new TestTankClient(initialConfig, TankAction.Right | TankAction.Left);
             Game game = new Game(client);
             game.Run(new SignalWeights());
         }
@@ -278,7 +337,7 @@ ________________________";
         [TestMethod]
         public void OpponentBetweenBatteryWithNoEnergy()
         {
-            joinResponse["grid"] =
+            initialConfig["grid"] =
 @"________________________
 ___W_____WWWWWWWW_______
 ___W_W__________________
@@ -296,9 +355,9 @@ ________________________
 ____WWW_________________
 ________________________";
 
-            joinResponse["energy"] = 0;
+            initialConfig["energy"] = 0;
 
-            TestTankClient client = new TestTankClient(joinResponse, TankAction.Right | TankAction.Left);
+            TestTankClient client = new TestTankClient(initialConfig, TankAction.Right | TankAction.Left);
             Game game = new Game(client);
             game.Run(new SignalWeights());
         }
@@ -307,7 +366,7 @@ ________________________";
         [TestMethod]
         public void ChasingEachOther()
         {
-            joinResponse["grid"] =
+            initialConfig["grid"] =
 @"________________________
 ___W_____WWWWWWWW_______
 ________________________
@@ -325,9 +384,9 @@ ________________________
 ________________________
 ____X__________O________";
 
-            joinResponse["orientation"] = "west";
+            initialConfig["orientation"] = "west";
 
-            TestTankClient client = new TestTankClient(joinResponse, TankAction.Move);
+            TestTankClient client = new TestTankClient(initialConfig, TankAction.Move);
             Game game = new Game(client);
             game.Run(new SignalWeights());
         }
@@ -335,7 +394,7 @@ ____X__________O________";
         [TestMethod]
         public void OppenentBehindWall()
         {
-            joinResponse["grid"] =
+            initialConfig["grid"] =
 @"________________________
 ___W_____WWWWWWWW_______
 ___W_W__________________
@@ -353,7 +412,7 @@ ________________________
 ____WWW_________________
 ________________________";
 
-            TestTankClient client = new TestTankClient(joinResponse, TankAction.Right);
+            TestTankClient client = new TestTankClient(initialConfig, TankAction.Right);
             Game game = new Game(client);
             game.Run(new SignalWeights());
         }
