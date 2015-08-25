@@ -14,8 +14,6 @@ namespace TurboTank
     /// </summary>
     public class Program
     {
-        public const string DefaultConfigFilename = "config.json";
-
         private const string Syntax =
                 "TurboTank <hostname> <port> <gamename> <username>\n";
 
@@ -23,7 +21,6 @@ namespace TurboTank
 
         static public int Main(string[] args)
         {
-            AppDomain.CurrentDomain.UnhandledException += UnhandledException;
             Directory.SetCurrentDirectory(IOUtil.GetProcessDirectory());
 
             JsonArgs commandLine = new JsonArgs(args);
@@ -40,8 +37,10 @@ namespace TurboTank
                     {
                         Console.WriteLine("Starting game ...");
                         TankClient client = new HttpTankClient(server, port, gameId, userId);
-                        Game game = new Game(client);
-                        game.Run(new SignalWeights());
+                        using (Game game = new Game(client, true))
+                        {
+                            game.Run(new SignalWeights());
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -67,34 +66,6 @@ namespace TurboTank
             }
 
             return 0;
-        }
-
-
-        static public void Log(string format, params object[] args)
-        {
-#if DEBUG
-            Console.WriteLine(format, args);
-            Console.WriteLine();
-#endif
-        }
-
-
-        static private void ExecuteService(JsonArgs commandLine)
-        {
-            string configFilename = IOUtil.ResolveRelativePath(commandLine.GetParam("config", DefaultConfigFilename));
-            DynObject config = DynObject.Parse(File.ReadAllText(configFilename));
-
-            WebServer server = new WebServer(config);
-            server.Run();
-        }
-
-
-
-        /// <summary>
-        /// Handle any exception that the code didn't handle so that we never terminate unexpectedly.
-        /// </summary>
-        static private void UnhandledException(object sender, UnhandledExceptionEventArgs args)
-        {
         }
 
     }

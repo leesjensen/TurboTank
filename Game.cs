@@ -3,6 +3,7 @@ using Shared;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -57,11 +58,13 @@ namespace TurboTank
 
 
 
-    public class Game
+    public class Game : IDisposable
     {
         private TankClient client;
         private long turnTimeout;
         private int numberOfTurns = 0;
+
+        private TextWriter gameOutput;
 
         public class GameConstants
         {
@@ -79,11 +82,31 @@ namespace TurboTank
 
 
 
-        public Game(TankClient client)
+        public Game(TankClient client, bool saveGame = false)
         {
             ThreadPool.SetMinThreads(operations.Length, 4);
 
             this.client = client;
+
+
+            if (saveGame)
+            {
+                string filename = string.Format("TankGame-{0}.txt", DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss"));
+                gameOutput = new StreamWriter(new FileStream(filename, FileMode.Create));
+            }
+            else
+            {
+                gameOutput = Console.Out;
+            }
+        }
+
+
+        public void Dispose()
+        {
+            if (gameOutput != null)
+            {
+                gameOutput.Close();
+            }
         }
 
 
@@ -156,7 +179,7 @@ namespace TurboTank
             foreach (var beam in beams)
             {
                 EvalState operationBest = beam.GetBest();
-                Console.WriteLine("   Beam {0} ({3} pts) - depth: {1}, candidates: {2} - {4}", beam.StartAction, depth, beam.CandidateCount, operationBest.Score, operationBest);
+                gameOutput.WriteLine("   Beam {0} ({3} pts) - depth: {1}, candidates: {2} - {4}", beam.StartAction, depth, beam.CandidateCount, operationBest.Score, operationBest);
                 if (bestState.Score < operationBest.Score)
                 {
                     bestState = operationBest;
@@ -164,18 +187,19 @@ namespace TurboTank
             }
 
 
-            Console.WriteLine("TURN {0} - Best: ({1}) {2}", numberOfTurns, bestState.Score, bestState);
+            gameOutput.WriteLine("TURN {0} - Best: ({1}) {2}", numberOfTurns, bestState.Score, bestState);
 
             return bestState.GetRootAction();
         }
 
 
-        private static Status ParseStatus(dynamic moveResponse, Grid grid)
+
+        private Status ParseStatus(dynamic moveResponse, Grid grid)
         {
             Status status;
             Enum.TryParse(moveResponse.status, true, out status);
 
-            Console.WriteLine(moveResponse.grid.ToString());
+            gameOutput.WriteLine("\r\n\r\n=====================================\r\nTURN {0} \r\n{1}", numberOfTurns + 1, moveResponse.grid.ToString().Replace("\n", "\r\n"));
 
             grid.Update(moveResponse);
 
@@ -192,7 +216,6 @@ namespace TurboTank
 
             return (ticksUsed > turnTimeout);
         }
-
     }
 
 }

@@ -46,7 +46,7 @@ namespace TurboTank
                 prev = "Start";
             }
 
-            if (prev.Length > 1000)
+            if (prev.Length > 950)
             {
                 return prev;
             }
